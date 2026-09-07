@@ -1,0 +1,34 @@
+services:
+  web:
+    platform: linux/amd64
+    build: .
+    image: iss-pxe:dev
+    env_file: .env
+    ports:
+      - "${PXE_HTTP_BIND:-127.0.0.1}:${PXE_HTTP_PORT:-8090}:8090"
+    volumes:
+      - ./data:/data
+    restart: unless-stopped
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8090/health')"]
+      interval: 15s
+      timeout: 3s
+      retries: 3
+  dhcp:
+    platform: linux/amd64
+    image: iss-pxe:dev
+    profiles: [pxe]
+    env_file: .env
+    network_mode: host
+    cap_add: [NET_ADMIN, NET_RAW]
+    command: [sh, -ec, "python manage.py dnsmasq > /tmp/dnsmasq.conf; dnsmasq --test -C /tmp/dnsmasq.conf; exec dnsmasq --no-daemon --log-facility=- -C /tmp/dnsmasq.conf"]
+    restart: unless-stopped
+  assets:
+    platform: linux/amd64
+    image: iss-pxe:dev
+    profiles: [tools]
+    env_file: .env
+    volumes:
+      - ./data:/data
+      - ./assets:/assets:ro
+    entrypoint: [python, manage.py]

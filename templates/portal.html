@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>ISS PXE • Desktop provisioning</title><link rel="stylesheet" href="/static/style.css"><script src="/static/portal.js" defer></script></head>
+<body><header><span class="brand">ISS / PROVISION</span><span class="tag">PXE LAB · AMD64</span></header>
+<main><section class="intro"><p class="eyebrow">DESKTOP DEPLOYMENT</p><h1>Configure once.<br>Boot. Install. Ready.</h1><p>Ubuntu Desktop and ISS3, installed automatically on the VM you select.</p></section>
+<section class="panel"><h2>Connect to your provisioner</h2><form id="login"><label>Admin token<input name="token" type="password" required autocomplete="off" placeholder="Token from your .env file"></label><button>Unlock console</button></form><p id="message" role="status"></p></section>
+<div class="columns"><section class="panel"><h2>New deployment</h2><p>Targets boot via DHCP. Final network settings are applied before first boot.</p>
+<form id="deploy"><fieldset disabled id="fields"><div class="grid">
+<label>VM MAC address<input name="mac" required placeholder="52:54:00:12:34:56"></label>
+<label>Hostname<input name="hostname" required placeholder="iss-station-01"></label>
+<label>Ubuntu Desktop<select name="release" id="releases" required><option value="">Import an ISO first</option></select></label>
+<label>Target disk<input name="disk" required placeholder="/dev/vda"></label>
+<label>Username<input name="username" required autocomplete="off"></label>
+<label>Password<input name="password" required type="password" minlength="8" autocomplete="new-password"></label>
+<label>Network mode<select name="mode" id="mode"><option value="dhcp">DHCP</option><option value="static">Static IPv4</option></select></label>
+<label>BU (optional)<input name="bu" placeholder="Reserved for future services"></label>
+</div><div id="static-fields" class="grid" hidden><label>Address / prefix<input name="address" placeholder="192.168.77.50/24"></label><label>Gateway<input name="gateway" placeholder="192.168.77.1"></label><label>DNS, comma separated<input name="dns" placeholder="1.1.1.1,8.8.8.8"></label></div>
+<label>ISS3 package<select name="package" id="packages"><option value="">OS only — skip ISS3</option></select></label>
+<div class="erase"><strong>This deployment erases the selected target disk.</strong><label>Re-enter the target MAC to authorize installation<input name="erase_confirmation" required autocomplete="off"></label></div>
+<button type="submit">Arm deployment →</button><p class="hint">Power on the VM with network boot first. No installer prompts. One boot authorization per deployment.</p></fieldset></form></section>
+<section class="panel"><h2>Deployment activity</h2><p id="catalog">Unlock to view imported images and packages.</p><div id="devices" aria-live="polite"></div><button id="refresh" type="button">Refresh status</button><p class="hint">A cancelled job cannot stop an installation already running on a VM. Power off that VM before authorizing a new deployment.</p></section></div>
+<footer>Dedicated PXE network · ISO import and DHCP setup: see README.md · BU upload services are not enabled.</footer></main></body></html>

@@ -1,0 +1,57 @@
+name: iss-pxe-vm-lab
+services:
+  lab:
+    build:
+      context: .
+      dockerfile: lab/Dockerfile
+    image: iss-pxe-vm-lab:dev
+    init: true
+    cap_add: [NET_ADMIN, NET_RAW]
+    devices: [/dev/net/tun:/dev/net/tun]
+    sysctls:
+      net.ipv4.ip_forward: "1"
+    ports:
+      - "127.0.0.1:18091:8090"
+      - "127.0.0.1:18092:6080"
+    volumes:
+      - ./lab-data:/lab-data
+      - ./lab:/app/lab
+      - ./provision.py:/app/provision.py
+      - ./portal.py:/app/portal.py
+      - ./manage.py:/app/manage.py
+    environment:
+      PXE_INTERFACE: pxe0
+      PXE_SERVER_CIDR: 192.168.77.2/24
+      PXE_DHCP_START: 192.168.77.100
+      PXE_DHCP_END: 192.168.77.200
+      PXE_GATEWAY: 192.168.77.2
+      PXE_DNS: 1.1.1.1
+      PXE_BASE_URL: http://192.168.77.2:8090
+    healthcheck:
+      test: [CMD, test, -f, /run/pxe-ready]
+      interval: 5s
+      timeout: 2s
+      retries: 10
+  web:
+    image: iss-pxe-vm-lab:dev
+    env_file: .env
+    environment:
+      PXE_DATA: /data
+      PXE_BASE_URL: http://192.168.77.2:8090
+    network_mode: service:lab
+    depends_on:
+      lab:
+        condition: service_healthy
+    volumes:
+      - ./lab-data/control:/data
+      - ./data/media:/data/media:ro
+      - ./data/packages:/data/packages:ro
+      - ./provision.py:/app/provision.py
+      - ./portal.py:/app/portal.py
+      - ./manage.py:/app/manage.py
+    command: [gunicorn, --workers=1, --threads=4, --bind=0.0.0.0:8090, "portal:create_app()"]
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8090/health')"]
+      interval: 5s
+      timeout: 2s
+      retries: 10
