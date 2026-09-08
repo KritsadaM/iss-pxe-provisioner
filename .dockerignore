@@ -6,4 +6,6 @@
 data
 assets
 lab-data
+.idea
+.DS_Store
 test-results

@@ -42,7 +42,8 @@ your compatibility claim, it does not prove binary compatibility.
 ## 1. Build and preview the web on this Mac
 
 ```sh
-cd /Users/anonymous/ISS3_playground_codex/pxe-provisioner
+git clone https://github.com/KritsadaM/iss-pxe-provisioner.git
+cd iss-pxe-provisioner
 docker build --platform linux/amd64 -t iss-pxe:dev .
 docker run --rm --platform linux/amd64 -v "$PWD:/app" iss-pxe:dev python manage.py init
 docker compose up -d web

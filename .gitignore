@@ -6,3 +6,10 @@ test-results/
 .env
 assets/
 lab-data/
+.idea/
+.DS_Store
+.env.*
+!.env.example
+*.qcow2
+*.iso
+*.deb

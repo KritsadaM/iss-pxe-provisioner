@@ -62,7 +62,12 @@ class ProvisionTests(unittest.TestCase):
                 self.assertEqual(response.status_code, 200)
                 config = yaml.safe_load(response.text)["autoinstall"]
                 self.assertNotIn("interactive-sections", config)
-                self.assertIn("ubuntu-desktop", config["packages"])
+                # The desktop is installed from late-commands against an explicit archive
+                # source: a live-server ISO has no ubuntu-desktop in its cdrom-only pool.
+                installs = [c for c in config["late-commands"] if "ubuntu-desktop" in c]
+                self.assertEqual(len(installs), 1)
+                self.assertIn("apt-get install -y ubuntu-desktop", installs[0])
+                self.assertNotIn("packages", config)
                 self.assertTrue(config["identity"]["password"].startswith("$6$"))
                 self.assertNotIn(self.values["password"], response.text)
                 self.assertEqual(config["storage"]["layout"]["match"]["path"], "/dev/vda")
@@ -109,7 +114,8 @@ class ProvisionTests(unittest.TestCase):
                                       gateway="192.168.77.1", dns="1.1.1.1,8.8.8.8"))
         config["token"] = "test"
         rendered = yaml.safe_load(seed(config, "http://192.168.77.2:8090"))["autoinstall"]
-        network = yaml.safe_load(base64.b64decode(rendered["late-commands"][1].split()[1]))
+        netplan = next(c for c in rendered["late-commands"] if "01-iss-provision.yaml" in c)
+        network = yaml.safe_load(base64.b64decode(netplan.split()[1]))
         self.assertEqual(network["network"]["renderer"], "NetworkManager")
         self.assertEqual(network["network"]["ethernets"]["pxe"]["addresses"], ["192.168.77.20/24"])
         for changes in ({"disk": "/dev/vda1"}, {"mac": "ff:ff:ff:ff:ff:ff"},

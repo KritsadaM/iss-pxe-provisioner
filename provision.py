@@ -7,6 +7,8 @@ import subprocess
 import yaml
 
 RELEASES = ("20.04", "22.04", "24.04")
+CODENAMES = {"20.04": "focal", "22.04": "jammy", "24.04": "noble"}
+DESKTOP_PACKAGES = ("ubuntu-desktop", "curl", "network-manager")
 
 
 def mac(value):
@@ -76,14 +78,30 @@ def seed(device, base, package=None):
                    "systemctl is-active --quiet iss3.service", "rm /var/tmp/iss3-provision.deb"]
     script += [report("completed"), "touch /var/lib/iss-provision-completed"]
     encoded = base64.b64encode(yaml.safe_dump(final_network(device)).encode()).decode()
+    # Subiquity only writes an archive mirror into the target when its early network probe
+    # succeeds; on a slow target that probe loses the race and the target is left with just
+    # "deb file:///cdrom", where ubuntu-desktop does not exist. Supply the archive explicitly.
+    suite = CODENAMES[device["release"]]
+    sources = base64.b64encode("".join(
+        "deb http://archive.ubuntu.com/ubuntu %s main restricted universe multiverse\n" % name
+        for name in (suite, suite + "-updates", suite + "-security")).encode()).decode()
+    # The lab LAN is IPv4-only, so every AAAA candidate fails with "Network is unreachable"
+    # before apt reaches an A record, and a single timed-out mirror connection aborts the whole
+    # desktop install because apt does not retry by default.
+    apt_conf = base64.b64encode(b'Acquire::ForceIPv4 "true";\n'
+                                b'Acquire::Retries "10";\n'
+                                b'Acquire::http::Timeout "120";\n').decode()
     config = {"version": 1, "refresh-installer": {"update": False},
               "locale": "en_US.UTF-8", "keyboard": {"layout": "us"},
               "identity": {"hostname": device["hostname"], "username": device["username"], "password": device["password_hash"]},
               "storage": {"layout": {"name": "direct", "match": {"path": device["disk"]}}},
               "network": {"version": 2, "ethernets": {"pxe": {"match": {"macaddress": device["mac"]}, "dhcp4": True}}},
-              "packages": ["ubuntu-desktop", "curl", "network-manager"],
               "early-commands": [report("installing")], "error-commands": [report("failed") + " || true"],
               "late-commands": [
+                  "echo " + q(sources) + " | base64 -d > /target/etc/apt/sources.list",
+                  "echo " + q(apt_conf) + " | base64 -d > /target/etc/apt/apt.conf.d/99-iss-provision",
+                  "curtin in-target --target=/target -- apt-get update",
+                  "curtin in-target --target=/target -- env DEBIAN_FRONTEND=noninteractive apt-get install -y " + " ".join(DESKTOP_PACKAGES),
                   "rm -f /target/etc/netplan/00-installer-config.yaml /target/etc/netplan/50-cloud-init.yaml",
                   "echo " + q(encoded) + " | base64 -d > /target/etc/netplan/01-iss-provision.yaml",
                   "chmod 600 /target/etc/netplan/01-iss-provision.yaml",
