@@ -50,7 +50,11 @@ def start(memory, smoke):
            "-netdev", "tap,id=pxe,ifname=pxe0,script=no,downscript=no",
            "-device", "virtio-net-pci,netdev=pxe,mac=" + ("52:54:00:77:00:99" if smoke else "52:54:00:77:00:10"),
            "-boot", "order=nc,menu=off", "-display", "none", "-vnc", "127.0.0.1:0",
-           "-serial", "file:" + str(ROOT / "serial.log"),
+           # A socket chardev still writes the log, and unlike a file-backed serial port it also
+           # accepts input, so the guest console can be used to inspect a failed deployment.
+           "-chardev", "socket,id=console,path=%s,server=on,wait=off,logfile=%s"
+           % (ROOT / "console.sock", ROOT / "serial.log"),
+           "-serial", "chardev:console",
            "-qmp", "unix:" + SOCKET + ",server=on,wait=off", "-daemonize",
            "-pidfile", str(ROOT / "qemu.pid")]
     subprocess.run(cmd, check=True)
